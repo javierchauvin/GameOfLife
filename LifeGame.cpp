@@ -7,7 +7,7 @@
 #include "fssimplewindow.h"
 #include "ysglfontdata.h"
 
-#define UNIVERSE_WEIGHT 1600
+#define UNIVERSE_WEIGHT 2000
 #define UNIVERSE_HEIGHT 1200
 #define CELL_SIZE 2
 
@@ -56,6 +56,10 @@ public:
 	//Draw a square to let user know what is selecting. Made to run in real time. 
 	//Receives initial position (xo,yo) and final position (xe,ye) in screen coordinates.
 	void DrawSlection(int xo, int yo, int xe, int ye);
+
+	//Coordinates adjustment from pixel to cell 
+	void AdjustCoordinates(int &mxo, int &myo, int &mxe, int &mye);
+
 };
 
 BitMap::BitMap(int Width, int Height, int SizeOfCell){
@@ -164,22 +168,25 @@ void BitMap::CheckState(void){
 //Vertical and horizantal lines are drawn one each cellSice distance
 void BitMap::Draw(){
 
-	glBegin(GL_QUADS);
+	//glBegin(GL_QUADS);
 	for(int y=0; y<hei; ++y){
 		for(int x=0; x<wid; ++x){
 			if (GetCell(x,y)){
-				glColor3ub(0,255,25);
+				glColor4ub(0,255,0,255);
 			} else {
 				glColor3ub(16,16,16);
 			}
-			
+			glBegin(GL_QUADS);
 			glVertex2i(x*cellSize			,y*cellSize);
 			glVertex2i(x*cellSize+cellSize	,y*cellSize);
 			glVertex2i(x*cellSize+cellSize	,y*cellSize+cellSize);
 			glVertex2i(x*cellSize			,y*cellSize+cellSize);
+			glEnd();
 		}
 	}
-	glEnd();
+	//glEnd();
+
+	//*** Draw lines ***//
 
 	//glBegin(GL_LINES);
 	//glColor3ub(128,128,128);
@@ -218,59 +225,110 @@ void BitMap::DrawSlection(int xo, int yo, int xe, int ye){
 	char Selection[10];
 	char buffer[5];
 
-	//Get the initial and final value of x and y in case the selection was made 
-	//from right to left or from buttom to top. 
-	int xini = min(xo,xe), xend = max(xo,xe);
-	int yini = min(yo,ye), yend = max(yo,ye);
+	AdjustCoordinates(xo, yo, xe, ye);
 
 	//Get the horizontal and vertical distance of the selection
-	heiPrint = (xend-xini)/cellSize;
-	widPrint = (yend-yini)/cellSize;
+	heiPrint = (xe - xo) < cellSize ? 1 : (xe - xo)/cellSize;
+	widPrint = (ye - yo) < cellSize ? 1 : (ye - yo)/cellSize;
 
-	//If the selection distance in pixels is not devisible by cellSize means the remainder 
-	//is greater than zero. In this case the user is selecting one more cell.
-	widPrint += 0<(xend%cellSize) ? 1:0;
-	heiPrint += 0<(yend%cellSize) ? 1:0;
+	////If the selection distance in pixels is not devisible by cellSize means the remainder 
+	////is greater than zero; or, if the selection distance in pixels is less than the cell size, 
+	////the number of cell to draw is added one
+	//if (0 < (xend%cellSize) || widPrint == 0) {
+	//	widPrint++;
+	//}
+	//if (0 < (yend%cellSize) || heiPrint == 0) {
+	//	heiPrint++;
+	//}
+
 
 	//Selection string concatenation. 
-	//The information is presented in format "hei x wid"
-	_itoa_s(widPrint,buffer,10);
+	//The information is presented in format "wid X hei"
+	_itoa_s(heiPrint, buffer, 10);
 	strcpy_s(Selection, buffer);
 	strcat_s(Selection, " x ");
-	_itoa_s(heiPrint,buffer,10);
+	_itoa_s(widPrint, buffer, 10);
+	strcat_s(Selection, buffer);
+
+	//Draw dimensions of selection square
+	//in the upper right corner. 
+	glColor3d(0, 255, 0);
+	glRasterPos2d(xe + cellSize, yo - cellSize);
+	YsGlDrawFontBitmap8x12(Selection);
+
+	//------------Drawing---------------//
+
+	//Selection string concatenation. 
+	//The information is presented in format "wid X hei"
+	_itoa_s(heiPrint, buffer, 10);
+	strcpy_s(Selection, buffer);
+	strcat_s(Selection, " x ");
+	_itoa_s(widPrint, buffer, 10);
 	strcat_s(Selection, buffer);
 
 	//Draw dimensions of selection square
 	//in the upper right corner. 
 	glColor3d(0,255,0);
-	glRasterPos2d(xend+cellSize,yini-cellSize);
+	glRasterPos2d(xe+cellSize,yo-cellSize);
 	YsGlDrawFontBitmap8x12(Selection);
 
-	//Draw Selection square
-	glColor4ub(0,255,25,128);
-	glBegin(GL_QUADS);
-	glVertex2d(xo,yo);    
-	glVertex2d(xe,yo);  
-	glVertex2d(xe,ye); 
-	glVertex2d(xo,ye);
-	glEnd();
+	////Draw Selection square
+	//glColor4ub(0, 255, 0, 128);
+	//glBegin(GL_QUADS);
+
+	//glVertex2d(xini, yini);
+	//glVertex2d(xend, yini);
+	//glVertex2d(xend, yend);
+	//glVertex2d(xini, yend);
+
+	//glEnd();
 
 	//Draw Border of the selection square
-	glColor3ub(0,255,50);
+	glColor3ub(0, 255, 50);
 	glBegin(GL_LINES);
-	glVertex2d(xo,yo);
-	glVertex2d(xe,yo);
 
-	glVertex2d(xe,yo);
-	glVertex2d(xe,ye);
+	glVertex2d(xo, yo);
+	glVertex2d(xe, yo);
 
-	glVertex2d(xe,ye);
-	glVertex2d(xo,ye);
+	glVertex2d(xe, yo);
+	glVertex2d(xe, ye);
 
-	glVertex2d(xo,ye);
-	glVertex2d(xo,yo);
+	glVertex2d(xe, ye);
+	glVertex2d(xo, ye);
+
+	glVertex2d(xo, ye);
+	glVertex2d(xo, yo);
+
 	glEnd();
+}
 
+
+////////// Extra functions //////////
+void BitMap::AdjustCoordinates(int &mxo, int &myo, int &mxe, int &mye) {
+
+	//Get the initial and final x,y value
+
+	//In case the selection was made from right to left or from buttom to top. 
+	int xini = min(mxo, mxe), xend = max(mxo, mxe);
+	int yini = min(myo, mye), yend = max(myo, mye);
+
+	//cout << xini << "," << yini << " - " << xend << "'" << yend << "\n";
+
+	//Draw the slection as cells not as mouse positions 
+	if (0 < xini % CELL_SIZE) {
+		xini -= xini % CELL_SIZE;
+	}
+	if (0 < yini % CELL_SIZE) {
+		yini -= yini % CELL_SIZE;
+	}
+	if (0 < xend % CELL_SIZE) {
+		xend += CELL_SIZE - (xend % CELL_SIZE);
+	}
+	if (0 < yend % CELL_SIZE) {
+		yend += CELL_SIZE - (yend % CELL_SIZE);
+	}
+	mxo = xini, mxe = xend;
+	myo = yini, mye = yend;
 }
 
 //class Info{
@@ -300,6 +358,7 @@ int main(){
 	vector <vector<char>> Undo;
 
 	int mxo = 0, myo = 0; //Mause coordinates origen
+	int mxe = 0, mye = 0; //Mause coordinates end 
 	bool Slecting = false;
 
 	for(;;){
@@ -322,7 +381,9 @@ int main(){
 		}
 
 		if (FSMOUSEEVENT_LBUTTONUP == evt){
-			Universe.Select(mxo,myo,mx,my,1);	
+			mxe = mx, mye = my; 
+			Universe.AdjustCoordinates(mxo,myo,mxe,mye);
+			Universe.Select(mxo,myo,mxe,mye,1);	
 			cout <<"End "<<mxo<<" "<<myo<<" "<<mx<<" "<<my<<" "<<endl;
 			mxo = 0;
 			myo = 0;
@@ -330,7 +391,9 @@ int main(){
 		}
 
 		if (FSMOUSEEVENT_RBUTTONUP == evt){
-			Universe.Select(mxo,myo,mx,my,0);	
+			mxe = mx, mye = my;
+			Universe.AdjustCoordinates(mxo, myo, mxe, mye);
+			Universe.Select(mxo,myo,mxe,mye,0);	
 			cout <<"End "<<mxo<<" "<<myo<<" "<<mx<<" "<<my<<" "<<endl;
 			mxo = 0;
 			myo = 0;
@@ -359,6 +422,7 @@ int main(){
 		//	Bodies body2Add(B_SQUARE_S);
 		//	addingBody = true;	
 		//}
+
 		if(FSKEY_UP==key && speed<10){
 			speed++;
 		}
